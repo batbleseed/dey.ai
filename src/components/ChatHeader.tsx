@@ -17,6 +17,7 @@ import {
   User as UserIcon,
   Server,
   Plus,
+  KeyRound,
 } from 'lucide-react';
 import { ModelOption, CustomProvider } from '../types';
 import { DeyLogo } from './DeyLogo';
@@ -277,18 +278,29 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </div>
               )}
 
-              {/* Configure Providers Footer Button */}
-              <div className="mt-2 pt-1.5 border-t border-neutral-100 dark:border-neutral-800/80">
+              {/* Configure Providers & BYOK Footer Buttons */}
+              <div className="mt-2 pt-1.5 border-t border-neutral-100 dark:border-neutral-800/80 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    onOpenSettings('model');
+                  }}
+                  className="w-full py-1.5 px-3 rounded-xl text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Bring Your Own Key (BYOK)</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setIsDropdownOpen(false);
                     onOpenSettings('providers');
                   }}
-                  className="w-full py-2 px-3 rounded-xl text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-1.5 px-3 rounded-xl text-xs font-medium text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Configure Custom Providers (Ollama, Groq, OpenRouter...)</span>
+                  <span>Configure Custom Providers</span>
                 </button>
               </div>
             </div>

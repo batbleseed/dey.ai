@@ -11,11 +11,23 @@ const PORT = 3000;
 app.use(express.json({ limit: '20mb' }));
 
 // Lazy initialization of Gemini client
-let aiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
-  if (!aiClient) {
+let defaultAiClient: GoogleGenAI | null = null;
+function getGeminiClient(customApiKey?: string): GoogleGenAI {
+  const trimmed = (customApiKey || '').trim();
+  if (trimmed) {
+    return new GoogleGenAI({
+      apiKey: trimmed,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+
+  if (!defaultAiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
-    aiClient = new GoogleGenAI({
+    defaultAiClient = new GoogleGenAI({
       apiKey: apiKey || '',
       httpOptions: {
         headers: {
@@ -24,7 +36,7 @@ function getGeminiClient(): GoogleGenAI {
       },
     });
   }
-  return aiClient;
+  return defaultAiClient;
 }
 
 // Health check endpoint
@@ -32,8 +44,41 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     hasKey: Boolean(process.env.GEMINI_API_KEY),
+    serverHasKey: Boolean(process.env.GEMINI_API_KEY),
     workspace: 'Dey AI Workspace',
   });
+});
+
+// Test Gemini API key (BYOK validation)
+app.post('/api/gemini/test', async (req, res) => {
+  try {
+    const apiKey = (req.body.apiKey || process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) {
+      return res.status(400).json({ ok: false, error: 'No API key provided to test' });
+    }
+    const testAi = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+    const result = await testAi.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: 'Ping',
+    });
+    if (result.text !== undefined) {
+      return res.json({ ok: true, message: 'Valid Gemini API Key!' });
+    }
+    return res.json({ ok: true });
+  } catch (err: any) {
+    console.error('Gemini Key Test Error:', err);
+    return res.status(400).json({
+      ok: false,
+      error: err?.message || 'Invalid Gemini API key or failed to connect to Gemini API',
+    });
+  }
 });
 
 // Models list endpoint
@@ -42,7 +87,7 @@ app.get('/api/models', (req, res) => {
     models: [
       {
         id: 'gemini-3.8-flash',
-        name: 'Dey 3.8 Flash',
+        name: 'Gemini 3.8 Flash',
         description: 'Fast, intelligent, and versatile for everyday work and brainstorming',
         badge: 'Default',
         recommended: true,
@@ -51,13 +96,13 @@ app.get('/api/models', (req, res) => {
         id: 'gemini-3.8-flash-thinking',
         actualModel: 'gemini-3.8-flash',
         thinking: true,
-        name: 'Dey Reasoner',
+        name: 'Gemini 3.8 Flash Thinking',
         description: 'Deep chain-of-thought reasoning for complex problem-solving and logic',
-        badge: 'Reasoning',
+        badge: 'Thinking',
       },
       {
         id: 'gemini-3.1-pro-preview',
-        name: 'Dey 3.1 Pro',
+        name: 'Gemini 3.1 Pro',
         description: 'Advanced reasoning, high-complexity code, math, and STEM architecture',
         badge: 'Pro',
       },
@@ -305,11 +350,13 @@ app.post('/api/chat', async (req, res) => {
       return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const userProvidedKey = (req.body.geminiApiKey || req.headers['x-gemini-api-key'] || '').trim();
+    const apiKey = userProvidedKey || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       res.write(
         `data: ${JSON.stringify({
-          error: 'GEMINI_API_KEY is not configured. Please add your key in Settings > Secrets.',
+          error:
+            'No Gemini API key found. Please provide your Google AI Studio API key in Settings > Models (BYOK) to chat.',
         })}\n\n`
       );
       res.write('data: [DONE]\n\n');
@@ -317,7 +364,7 @@ app.post('/api/chat', async (req, res) => {
       return;
     }
 
-    const ai = getGeminiClient();
+    const ai = getGeminiClient(apiKey);
 
     // Map model selection
     let selectedModel = model;

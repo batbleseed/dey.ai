@@ -20,6 +20,12 @@ import {
   FlaskConical,
   Laptop,
   Server,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  ShieldCheck,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { WorkspaceSettings } from '../types';
 import { DeyLogo } from './DeyLogo';
@@ -87,6 +93,36 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<'persona' | 'model' | 'providers' | 'interface' | 'beta' | 'cloud' | 'data'>('persona');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [keyTestResult, setKeyTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const handleTestKey = async () => {
+    const keyToTest = (localSettings.geminiApiKey || '').trim();
+    if (!keyToTest) {
+      setKeyTestResult({ ok: false, message: 'Please enter a Gemini API key first.' });
+      return;
+    }
+    setIsTestingKey(true);
+    setKeyTestResult(null);
+    try {
+      const res = await fetch('/api/gemini/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: keyToTest }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setKeyTestResult({ ok: true, message: '✓ Key is valid! Connected to Gemini models.' });
+      } else {
+        setKeyTestResult({ ok: false, message: data.error || 'Failed to validate API key.' });
+      }
+    } catch (err: any) {
+      setKeyTestResult({ ok: false, message: err?.message || 'Network error while testing key.' });
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && initialTab) {
@@ -133,7 +169,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const navTabs = [
     { id: 'persona', label: 'Persona', icon: Bot, badge: undefined },
-    { id: 'model', label: 'Models', icon: Gauge, badge: undefined },
+    {
+      id: 'model',
+      label: 'Models & BYOK',
+      icon: Gauge,
+      badge: localSettings.geminiApiKey ? 'BYOK' : !hasApiKey ? 'Key Needed' : undefined,
+    },
     {
       id: 'providers',
       label: 'Custom Providers',
@@ -311,6 +352,119 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             {/* Tab 2: Models & Parameters */}
             {activeTab === 'model' && (
               <div className="space-y-5 animate-in fade-in duration-150">
+                {/* Bring Your Own Key (BYOK) Card */}
+                <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-950/60 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-emerald-500" />
+                        <h4 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                          Bring Your Own Key (BYOK)
+                        </h4>
+                        {localSettings.geminiApiKey ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            Personal Key Active
+                          </span>
+                        ) : hasApiKey ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
+                            Server key available
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Key needed
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                        Add your personal Gemini API key. Stored locally in your browser so you use your own quota instead of the host.
+                      </p>
+                    </div>
+
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-1 shrink-0 px-2.5 py-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                    >
+                      <span>Get free key</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="relative flex items-center">
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={localSettings.geminiApiKey || ''}
+                        onChange={(e) => {
+                          updateSetting('geminiApiKey', e.target.value.trim());
+                          setKeyTestResult(null);
+                        }}
+                        placeholder="Paste your Gemini API key (AIzaSy...)"
+                        className="w-full px-3.5 py-2.5 pr-20 text-xs rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <div className="absolute right-2 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 rounded cursor-pointer transition-colors"
+                          title={showApiKey ? 'Hide key' : 'Show key'}
+                        >
+                          {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                        {localSettings.geminiApiKey && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateSetting('geminiApiKey', undefined);
+                              setKeyTestResult(null);
+                            }}
+                            className="p-1.5 text-neutral-400 hover:text-red-500 rounded cursor-pointer transition-colors"
+                            title="Clear key"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        type="button"
+                        onClick={handleTestKey}
+                        disabled={isTestingKey || !localSettings.geminiApiKey}
+                        className="px-3 py-1.5 text-xs font-medium bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 rounded-lg hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {isTestingKey ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Validating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Test Key</span>
+                          </>
+                        )}
+                      </button>
+
+                      {keyTestResult && (
+                        <p
+                          className={`text-xs font-medium flex items-center gap-1 ${
+                            keyTestResult.ok
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {keyTestResult.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
                     Default Conversation Model

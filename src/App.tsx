@@ -525,6 +525,7 @@ export default function App() {
           })),
           model: selectedModel,
           customProvider: customProviderPayload,
+          geminiApiKey: settings.geminiApiKey || undefined,
           systemInstruction: settings.systemInstruction,
           enableSearch,
           thinkingLevel: enableThinking ? 'HIGH' : undefined,

@@ -81,4 +81,5 @@ export interface WorkspaceSettings {
   messageBoxWidth?: 'wide' | 'full' | 'compact';
   enableBeta?: boolean;
   customProviders?: CustomProvider[];
+  geminiApiKey?: string;
 }
