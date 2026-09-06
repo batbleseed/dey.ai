@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="dey-grad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="50%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#0891b2" />
+    </linearGradient>
+    <radialGradient id="sparkle-glow" cx="60%" cy="35%" r="45%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#34d399" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#059669" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <!-- Background Tile -->
+  <rect width="64" height="64" rx="16" fill="#0f172a" />
+  <rect width="64" height="64" rx="16" fill="url(#dey-grad)" fill-opacity="0.15" />
+  <!-- D glyph -->
+  <path d="M20 16H34C43.94 16 52 23.16 52 32C52 40.84 43.94 48 34 48H20V16Z" fill="url(#dey-grad)" />
+  <path d="M28 24H33C38.52 24 43 27.58 43 32C43 36.42 38.52 40 33 40H28V24Z" fill="#0f172a" />
+  <!-- Intelligence Node Sparkle -->
+  <circle cx="43" cy="22" r="5" fill="#34d399" />
+  <circle cx="43" cy="22" r="8" fill="url(#sparkle-glow)" />
+</svg>

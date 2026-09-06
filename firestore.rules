@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data, userId) {
+      return data.uid == userId &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 200)) &&
+        (!('email' in data) || data.email == null || (data.email is string && data.email.size() <= 320)) &&
+        (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 2000)) &&
+        (!('theme' in data) || (data.theme is string && data.theme.size() <= 30)) &&
+        (!('defaultModel' in data) || (data.defaultModel is string && data.defaultModel.size() <= 80)) &&
+        (!('systemInstruction' in data) || (data.systemInstruction is string && data.systemInstruction.size() <= 50000)) &&
+        (!('enableWebSearch' in data) || (data.enableWebSearch is bool)) &&
+        (!('thinkingLevel' in data) || (data.thinkingLevel is string && data.thinkingLevel.size() <= 20)) &&
+        (!('messageBoxWidth' in data) || (data.messageBoxWidth is string && data.messageBoxWidth.size() <= 20));
+    }
+
+    function isValidChat(data, userId, chatId) {
+      return data.userId == userId &&
+        data.id == chatId &&
+        data.title is string && data.title.size() <= 500 &&
+        data.createdAt is number &&
+        data.updatedAt is number &&
+        (!('isPinned' in data) || (data.isPinned is bool)) &&
+        (!('model' in data) || (data.model is string && data.model.size() <= 80));
+    }
+
+    function isValidMessage(data, userId, chatId, messageId) {
+      return data.userId == userId &&
+        data.chatId == chatId &&
+        data.id == messageId &&
+        data.role is string && (data.role == 'user' || data.role == 'assistant' || data.role == 'model' || data.role == 'system') &&
+        data.content is string && data.content.size() <= 500000 &&
+        data.timestamp is number;
+    }
+
+    function isValidCanvasDoc(data, userId, docId) {
+      return data.userId == userId &&
+        data.id == docId &&
+        data.title is string && data.title.size() <= 300 &&
+        data.language is string && data.language.size() <= 60 &&
+        data.content is string && data.content.size() <= 1000000 &&
+        data.updatedAt is number;
+    }
+
+    // User document & workspace preferences
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false; // user profile is never listed
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // User chat threads
+      match /chats/{chatId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(chatId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(chatId) && isValidChat(incoming(), userId, chatId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(chatId) && isValidChat(incoming(), userId, chatId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(chatId);
+
+        // Messages inside a chat thread
+        match /messages/{messageId} {
+          allow get: if isOwner(userId) && isValidId(userId) && isValidId(chatId) && isValidId(messageId);
+          allow list: if isOwner(userId) && isValidId(userId) && isValidId(chatId);
+          allow create: if isOwner(userId) && isValidId(userId) && isValidId(chatId) && isValidId(messageId) && isValidMessage(incoming(), userId, chatId, messageId);
+          allow update: if isOwner(userId) && isValidId(userId) && isValidId(chatId) && isValidId(messageId) && isValidMessage(incoming(), userId, chatId, messageId);
+          allow delete: if isOwner(userId) && isValidId(userId) && isValidId(chatId) && isValidId(messageId);
+        }
+      }
+
+      // User canvas documents
+      match /canvas/{docId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(docId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(docId) && isValidCanvasDoc(incoming(), userId, docId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(docId) && isValidCanvasDoc(incoming(), userId, docId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(docId);
+      }
+    }
+  }
+}

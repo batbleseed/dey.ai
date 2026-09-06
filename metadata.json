@@ -1,0 +1,6 @@
+{
+  "name": "Dey",
+  "description": "An intelligent AI workspace with ChatGPT-like interface, real-time reasoning, multimodal canvas, and document collaboration.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
